@@ -1,13 +1,37 @@
 #!/bin/sh
+#
+# Send an email to all members, that have the subscribe flag set, to inform them about the newest post on https://ksick.dev
 
 print_usage () {
-  echo "requires jq and curl"
+  echo "This script sends an email to all members, that have the subscribe flag set, to inform them about the newest post on https://ksick.dev."
+  echo "* Arguments:"
+  echo "  - ghost_api_key: Ghost uses a key to secure its API, you can find more information about it and how to generate it here: https://ghost.org/docs/api/v3/content/#key"
+  echo "  - ghost_export_file: a file containing all information about a Ghost blog. Can be exported in the admin panel at \"Labs\" -> \"Export your content\"" 
+  echo "* Requirements:"
+  echo "  - jq"
+  echo "  - curl"
 }
 
+#######################################
+# Reads in all members, that have the subscribe flag set, from the passed export file from ghost and generates a JSON containing their mail addresses
+# and unsubscribe URLs. This JSON defines to whom the mail should be sent.
+# Globals:
+#   destinations
+# Arguments:
+#   ghost_export_file: the file containing information about the members
+#######################################
 get_all_destinations() {
   destinations=$(cat $ghost_export_file | jq '.db[0].data.members[] | select(.subscribed == 1) | { "Destination": { "ToAddresses": [.email] }, "ReplacementTemplateData": ("{ \"unsubscribeUrl\": \"https://ksick.dev/unsubscribe/?uuid=" + .uuid + "\"}") }' | jq --slurp '.')
 }
 
+#######################################
+# Fetches thew newest post from https://ksick.dev and generates a JSON containing information about the post. This JSON defines the variables that will
+# be replaced in the template.
+# Globals:
+#   default_template_data
+# Arguments:
+#   ghost_api_key
+#######################################
 get_default_template_data() {
   title_key="title"
   url_key="url"
@@ -47,7 +71,7 @@ default_template_data
 get_all_destinations
 get_default_template_data
 
-# generate a json containing information about the bulk email that will be sent out
+# generate a JSON containing information about the bulk email that will be sent out
 bulk_mail_json=$(jq -nR \
   --arg source "ksick.dev <noreply@ksick.dev>" \
   --arg template "NewPostTemplate" \
@@ -59,7 +83,7 @@ bulk_mail_json=$(jq -nR \
 
 template_file="bulk_mail_template.json"
 
-# write json to template file
+# write the JSON to the template file
 echo "$bulk_mail_json" > $template_file
 
 # send out the email via AWS SES
