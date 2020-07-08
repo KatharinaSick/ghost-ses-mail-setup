@@ -21,7 +21,9 @@ print_usage () {
 #   ghost_export_file: the file containing information about the members
 #######################################
 get_all_destinations() {
-  destinations=$(cat $ghost_export_file | jq '.db[0].data.members[] | select(.subscribed == 1) | { "Destination": { "ToAddresses": [.email] }, "ReplacementTemplateData": ("{ \"unsubscribeUrl\": \"https://ksick.dev/unsubscribe/?uuid=" + .uuid + "\"}") }' | jq --slurp '.')
+  jq_command='.db[0].data.members[] | select(.subscribed == 1)'
+  jq_command+='| { "Destination": { "ToAddresses": [.email] }, "ReplacementTemplateData": ("{ \"unsubscribeUrl\": \"https://ksick.dev/unsubscribe/?uuid=" + .uuid + "\"}") }'
+  destinations=$(cat $ghost_export_file | jq "$jq_command" | jq --slurp '.')
 }
 
 #######################################
